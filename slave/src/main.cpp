@@ -14,7 +14,8 @@
 //#define LIVE
 
 // Define the broadcast address for ESP-NOW communication
-uint8_t broadcastAddress1[] = {0x30, 0xAE, 0xA4, 0x99, 0x39, 0x94};
+
+uint8_t broadcastAddress1[] = {0xD8, 0xBC, 0x38, 0x75, 0x37, 0x60};
 
 // Declare ESP-NOW peer information
 esp_now_peer_info_t peerInfo;
@@ -27,7 +28,7 @@ unsigned long lastTouchTime = 0;
 const unsigned long cooldownDuration = 10 * 1000; // 10 seconds cooldown
 
 // Thresholds for danger conditions
-const float WBGT_THRESHOLD = 25.0;
+const float WBGT_THRESHOLD = 30.0;
 const float ICT_THRESHOLD = 38.5;
 
 // Define the structure for slave information
@@ -40,7 +41,7 @@ typedef struct
   float slave_ICT;
   bool is_danger_WBGT;
   bool is_danger_ICT;
-} __attribute__((packed)) slave_info_t;
+} slave_info_t;
 
 // Function to produce short pulses on the buzzer
 void buzzShortPulses(int numPulses, int pulseDuration, int pauseDuration) {
@@ -70,7 +71,7 @@ void cb_espnow_tx(const uint8_t *mac_addr, esp_now_send_status_t status) {
 // Callback function for ESP-NOW reception
 void cb_espnow_rx(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.println("Received warning from central");
-  buzzShortPulses(3, 1000, 100);
+  //buzzShortPulses(3, 1000, 100);
 }
 
 // Function to compute WBGT (Wet Bulb Globe Temperature)
@@ -97,7 +98,7 @@ float read_ICT() {
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println(F("Slave test!"));
 
   // Set pin modes
