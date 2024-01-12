@@ -12,6 +12,7 @@
 #define SAMPLING_INTERVAL 1000 // Sampling interval to receive slave info
 #define AWS_IOT_PUBLISH_TOPIC "esp32/pub"
 #define AWS_IOT_SUBSCRIBE_TOPIC "esp32/sub"
+#define BLUE_LED_PIN 27
 
 // Initialize hardware components and objects
 WiFiClientSecure net = WiFiClientSecure(); // Initialize secure WiFi client
@@ -22,16 +23,11 @@ const int daylightOffset_sec = 0;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, ntpServer, gmtOffset_sec, daylightOffset_sec);
 
-// Declare global constants
-float slave_WBGT; // Slave WBGT info
-float slave_ICT;  // Slave Internal Core body temperature
-float slave_ID;   // slave ID
-unsigned long lastReadTime = 0;
-
 // Functions statements
 void connectAWS();                                                    // Function to establish connection with AWS IoT
-void publishMessage();                                                // Function to publish sensor data to AWS IoT
+void publishMessage(float wbgt, float ict) ;                          // Function to publish sensor data to AWS IoT
 void messageHandler(char *topic, byte *payload, unsigned int length); // Function to handle incoming MQTT messages
+void blinkLed(int numBlinks, int blinkDuration, int pauseDuration);    
 
 // CHANGE START //
 static constexpr uint32_t MIN_TICKS_YIELD = 25UL;
@@ -79,7 +75,7 @@ static volatile bool GLOBAL_data_ready = false;
 static volatile bool GLOBAL_Slave_in_Danger = false;
 
 uint8_t broadcastAddress1[] = {0x94, 0xE6, 0x86, 0x65, 0xE8, 0xF8}; // Slave A
-//uint8_t broadcastAddress2[] = {0x30, 0xAE, 0xA4, 0x05, 0x4C, 0x0C}; // Slave B
+uint8_t broadcastAddress2[] = {0x48, 0x27, 0xE2, 0xF0, 0x23, 0xA4}; // Slave B
 
 esp_now_peer_info_t peerInfoA;
 esp_now_peer_info_t peerInfoB;
@@ -91,8 +87,10 @@ void cb_espnow_rx(const uint8_t *mac, const uint8_t *incomingData, int len)
 
   memcpy(&GLOBAL_data, incomingData, sizeof(GLOBAL_data));
   GLOBAL_data_ready = true;
+
   Serial.print("Bytes received: ");
   Serial.println(len);
+  /*
   Serial.print("slave Temperature: ");
   Serial.println(GLOBAL_data.temperature);
   Serial.print("slave Humidity: ");
@@ -101,9 +99,10 @@ void cb_espnow_rx(const uint8_t *mac, const uint8_t *incomingData, int len)
   Serial.println(GLOBAL_data.slave_WBGT);
   Serial.print("slave ICT: ");
   Serial.println(GLOBAL_data.slave_ICT);
-  
+  */
+
   // distress signal
-  if(GLOBAL_data.slave_ICT||GLOBAL_data.slave_WBGT) GLOBAL_Slave_in_Danger = true;
+  if(GLOBAL_data.is_danger_WBGT||GLOBAL_data.is_danger_ICT) GLOBAL_Slave_in_Danger = true;
 }
 
 void cb_espnow_tx(const uint8_t *mac_addr, esp_now_send_status_t status)
@@ -121,6 +120,7 @@ void cb_espnow_tx(const uint8_t *mac_addr, esp_now_send_status_t status)
 void setup()
 {
   APP_LOG_START();
+   pinMode(BLUE_LED_PIN, OUTPUT);
   WiFi.mode(WIFI_AP_STA); // important or nothing will work.
 
  /* WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -166,7 +166,7 @@ void setup()
    - Continuously monitor for data readiness and send data to the slave through ESP-NOW
 */
 void controllerTask(void *){
-  Serial.println("testing");
+  Serial.println("Master Test!");
 
   // Init ESP-NOW
   if (esp_now_init() != ESP_OK)
@@ -190,7 +190,7 @@ void controllerTask(void *){
     return;
   }
 
-  /*
+  
   // register peer
   peerInfoB.channel = 0;
   peerInfoB.encrypt = false;
@@ -201,7 +201,7 @@ void controllerTask(void *){
     Serial.println("Failed to add Slave B");
     return;
   }
-  */
+  
   
   static slave_info_t data;
   for (;;)
@@ -210,13 +210,19 @@ void controllerTask(void *){
     if (GLOBAL_data_ready)
     {
       GLOBAL_data_ready = false;
-      if (xQueueSend(incomingDataQueue, (void *)&data, portMAX_DELAY) == pdPASS)
-      {
+       blinkLed(3, 200, 100);
+      if (xQueueSend(incomingDataQueue, (void *)&GLOBAL_data, 1) == pdPASS)
+      { 
+
+        //Serial.println("slave status");
+        //Serial.println(GLOBAL_Slave_in_Danger);
+
         if(GLOBAL_Slave_in_Danger){
-          esp_now_send(0, (uint8_t *)&data, sizeof(slave_info_t));
+          APP_LOG_INFO("Slave in Danger");
+          esp_now_send(broadcastAddress2, (uint8_t *)&GLOBAL_data, sizeof(slave_info_t));
+         // placeholder for broadcast ^^^^^
+          APP_LOG_INFO("TX TO QUEUE");
           GLOBAL_Slave_in_Danger = false;
-        // placeholder for broadcast ^^^^^
-        APP_LOG_INFO("TX TO QUEUE");
         }
       }
     }
@@ -241,15 +247,16 @@ void awsTask(void *){
     if ((uxQueueMessagesWaiting(incomingDataQueue) > 0))
     {
 
-      if (xQueueReceive(incomingDataQueue, (void *)&data, portMAX_DELAY) == pdPASS)
+      if (xQueueReceive(incomingDataQueue, (void *)&data, 1) == pdPASS)
       {
 
         APP_LOG_INFO("RX FROM QUEUE");
-        APP_LOG_INFO(data.humidity);
-        Serial.print("slave Temperature: ");
-        Serial.println(data.temperature);
+        APP_LOG_INFO(data.slave_WBGT);
+        APP_LOG_INFO(data.is_danger_WBGT);
+        APP_LOG_INFO(data.is_danger_ICT);
+
 #warning "PLACEHOLDER FOR SOME EXPENSIVE FN TO SEND TO AWS"
-        // publishMessage();
+        // publishMessage(data.slave_WBGT,data.slave_ICT);
         // client.loop();
       }
     }
@@ -305,14 +312,14 @@ void connectAWS()
  * Publishes sensor data to the AWS IoT platform.
  * Creates a JSON document and publishes it as a message.
  */
-void publishMessage()
+void publishMessage(float wbgt, float ict)
 {
   StaticJsonDocument<200> doc;
-  doc["slave_ID"] = slave_ID;
+  doc["Master_ID"] = "Master_01";
 // doc["time"] = getCurrentUnixTimestamp();
 #warning "COMMENTED OUT BECAUSE OF COMPILER ERROR"
-  doc["slave_WBGT"] = slave_WBGT;
-  doc["slave_internal_core_body_temperature"] = slave_ICT;
+  doc["slave_WBGT"] = wbgt;
+  doc["slave_internal_core_body_temperature"] = ict;
 
   char jsonBuffer[512];
   serializeJson(doc, jsonBuffer); // print to client
@@ -341,4 +348,14 @@ unsigned long getCurrentUnixTimestamp()
 
   // Get the current Unix timestamp (in seconds)
   return timeClient.getEpochTime();
+}
+
+// Function to blink the red LED
+void blinkLed(int numBlinks, int blinkDuration, int pauseDuration) {
+  for (int i = 0; i < numBlinks; i++) {
+    digitalWrite(BLUE_LED_PIN, HIGH);
+    delay(blinkDuration);
+    digitalWrite(BLUE_LED_PIN, LOW);
+    delay(pauseDuration);
+  }
 }
