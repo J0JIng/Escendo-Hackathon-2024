@@ -2,6 +2,7 @@
 #include "DHT.h"
 #include "esp_now.h"
 #include "WiFi.h"
+#include "esp_wifi.h"
 #include <WiFiUdp.h>
 
 // Define constants for pins and thresholds
@@ -112,6 +113,8 @@ void setup() {
   // Set WiFi mode
   WiFi.mode(WIFI_STA);
   Serial.println(WiFi.macAddress());
+  
+  esp_wifi_set_channel(11,WIFI_SECOND_CHAN_NONE);
 
   // Initialize ESP-NOW
   if (esp_now_init() != ESP_OK) {

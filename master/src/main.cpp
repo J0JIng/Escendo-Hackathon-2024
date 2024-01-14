@@ -7,7 +7,9 @@
 #include <TimeLib.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include "esp_wifi.h"
 #include "esp_now.h"
+
 
 #define SAMPLING_INTERVAL 1000 // Sampling interval to receive slave info
 #define AWS_IOT_PUBLISH_TOPIC "esp32/pub"
@@ -92,6 +94,7 @@ void cb_espnow_rx(const uint8_t *mac, const uint8_t *incomingData, int len)
   Serial.print("Bytes received: ");
   Serial.println(len);
   /*
+  DEBUG
   Serial.print("slave Temperature: ");
   Serial.println(GLOBAL_data.temperature);
   Serial.print("slave Humidity: ");
@@ -123,16 +126,7 @@ void setup()
   APP_LOG_START();
   pinMode(BLUE_LED_PIN, OUTPUT);
   WiFi.mode(WIFI_AP_STA);// important or nothing will work.
-  //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
- 
-  //Serial.println("Connecting to Wi-Fi");
- 
-  //while (WiFi.status() != WL_CONNECTED)
-  //{
-  //  delay(500);
-  //  Serial.print(".");
-  //}
-  /*
+  
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
 
@@ -144,8 +138,14 @@ void setup()
     vTaskDelay(2000);
   }
   Serial.println("[INIT] WIFI CONNECTION OK");
-  */
-  //connectAWS();
+  
+  uint8_t primaryChan = 0;
+  wifi_second_chan_t secondChan = WIFI_SECOND_CHAN_NONE;
+  esp_wifi_get_channel(&primaryChan,&secondChan);
+  Serial.printf("CONFIG_ESPNOW_CHANNEL=%d; WIFI is on Channel %d",primaryChan,secondChan);
+  esp_wifi_set_channel(primaryChan,secondChan);
+
+  connectAWS();
   
   APP_LOG_INFO("MAC address: ");
   APP_LOG_INFO(WiFi.macAddress());
@@ -190,8 +190,8 @@ void controllerTask(void *){
 
   esp_now_register_send_cb(cb_espnow_tx);
 
-  // register peer
-  peerInfoA.channel = 0;
+  // register peer A
+  peerInfoA.channel = 11;
   peerInfoA.encrypt = false;
   // register first peer
   memcpy(peerInfoA.peer_addr, broadcastAddress1, 6);
@@ -202,8 +202,8 @@ void controllerTask(void *){
   }
 
   
-  // register peer
-  peerInfoB.channel = 0;
+  // register peer B
+  peerInfoB.channel = 11;
   peerInfoB.encrypt = false;
   // register first peer
   memcpy(peerInfoB.peer_addr, broadcastAddress2, 6);
