@@ -74,8 +74,9 @@ static slave_info_t GLOBAL_data;
 static volatile bool GLOBAL_data_ready = false;
 static volatile bool GLOBAL_Slave_in_Danger = false;
 
-uint8_t broadcastAddress1[] = {0x94, 0xE6, 0x86, 0x65, 0xE8, 0xF8}; // Slave A
-uint8_t broadcastAddress2[] = {0x48, 0x27, 0xE2, 0xF0, 0x23, 0xA4}; // Slave B
+// Update accordingly
+uint8_t broadcastAddress1[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Slave A
+uint8_t broadcastAddress2[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Slave B
 
 esp_now_peer_info_t peerInfoA;
 esp_now_peer_info_t peerInfoB;
@@ -120,14 +121,23 @@ void cb_espnow_tx(const uint8_t *mac_addr, esp_now_send_status_t status)
 void setup()
 {
   APP_LOG_START();
-   pinMode(BLUE_LED_PIN, OUTPUT);
-  WiFi.mode(WIFI_AP_STA); // important or nothing will work.
-
- /* WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  pinMode(BLUE_LED_PIN, OUTPUT);
+  WiFi.mode(WIFI_AP_STA);// important or nothing will work.
+  //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+ 
+  //Serial.println("Connecting to Wi-Fi");
+ 
+  //while (WiFi.status() != WL_CONNECTED)
+  //{
+  //  delay(500);
+  //  Serial.print(".");
+  //}
+  /*
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
 
   Serial.println("Connecting to Wi-Fi");
-
+  
   while (WiFi.status() != WL_CONNECTED)
   {
     Serial.println("[INIT] ERROR CONNECTING TO WIFI");
@@ -135,7 +145,8 @@ void setup()
   }
   Serial.println("[INIT] WIFI CONNECTION OK");
   */
- 
+  //connectAWS();
+  
   APP_LOG_INFO("MAC address: ");
   APP_LOG_INFO(WiFi.macAddress());
   xTaskCreatePinnedToCore(
@@ -256,8 +267,8 @@ void awsTask(void *){
         APP_LOG_INFO(data.is_danger_ICT);
 
 #warning "PLACEHOLDER FOR SOME EXPENSIVE FN TO SEND TO AWS"
-        // publishMessage(data.slave_WBGT,data.slave_ICT);
-        // client.loop();
+        //publishMessage(data.slave_WBGT,data.slave_ICT);
+        //client.loop();
       }
     }
 
@@ -359,3 +370,4 @@ void blinkLed(int numBlinks, int blinkDuration, int pauseDuration) {
     delay(pauseDuration);
   }
 }
+
