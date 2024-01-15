@@ -33,11 +33,21 @@ We developed a lightweight IoT device equipped with sensors to measure both the 
   <img src="https://github.com/J0JIng/Escendo-Hackathon-2024/blob/main/doc/Slave_A.jpg" alt="UN_17_SDG" width="400">
 </div>
 
-Our team successfully created a prototype, depicted above. In this system, the Master unit(M) receives data collected by the Slave unit(A), then efficiently transmits this information to the cloud through AWS IoT. Once in the cloud, the data undergoes processing to derive valuable insights and analysis. 
+The prototype for this project was implemented on the ESP32/-S3 development board (shown above). The ESP-NOW proprietary protocol was used due to its improved latency and range over BLE [[1]](#1), and simplistic protocol stack as compared to Wi-Fi's OSI model [[2]](#2).
+In this system, the Master unit(M) receives data collected by the Slave unit(A), then efficiently transmits this information to the cloud through AWS IoT. Once in the cloud, the data undergoes processing to derive valuable insights and analysis.
+
+In order to ensure Wi-Fi/ESP-NOW concurrency on the Master unit, AP/STA mode was used, as well as automatic channel detection. FreeRTOS was used to facilitate asynchronous operation of the program logic.
 
 <br>
 <img src="https://github.com/J0JIng/Escendo-Hackathon-2024/blob/main/doc/Device_connection.png" alt="UN_17_SDG" width="900" height="500">
 
-The image above provides an overview of the framework we have established. This schematic illustrates the connections and interactions between the Master unit, Slave unit, and the cloud, showcasing the flow of data within our solution.
+The image above provides an overview of the framework we have established. This schematic illustrates the connections and interactions between the Master unit, Slave unit, and the cloud, showcasing the flow of data within our solution.<br>
 
+We note that the ESP-NOW protocol does not limit the number of peer-to-peer connections. The system could be scaled up (in network range) through use of repeater nodes, or propagating messages to form a mesh network.
+
+## References
+<a id="1">[1]</a> D. Eridani, A. F. Rochim and F. N. Cesara, "Comparative Performance Study of ESP-NOW, Wi-Fi, Bluetooth Protocols based on Range, Transmission Speed, Latency, Energy Usage and Barrier Resistance," 2021 International Seminar on Application for Technology of Information and Communication (iSemantic), Semarangin, Indonesia, 2021, pp. 322-328, doi: 10.1109/iSemantic52711.2021.9573246.
+
+<br>
+<a id="2">[2]</a> Urazayev, Dnislam & Eduard, Aida & Ahsan, Muhammad & Zorbas, Dimitrios. (2023). Indoor Performance Evaluation of ESP-NOW. 
 
