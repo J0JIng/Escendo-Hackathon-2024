@@ -38,5 +38,6 @@ Our team successfully created a prototype, depicted above. In this system, the M
 <br>
 <img src="https://github.com/J0JIng/Escendo-Hackathon-2024/blob/main/doc/Device_connection.png" alt="UN_17_SDG" width="900" height="500">
 
+The image above provides an overview of the framework we have established. This schematic illustrates the connections and interactions between the Master unit, Slave unit, and the cloud, showcasing the flow of data within our solution.
 
 
